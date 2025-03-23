@@ -1,0 +1,1030 @@
+"use client"
+
+import React from "react"
+
+// This is a simplified version that bundles React and your component
+// In a real implementation, you'd use a build tool like webpack or Rollup
+
+// First, include React and ReactDOM
+const e = React.createElement
+
+// Your VideoGallery component (simplified)
+function VideoGallery() {
+  // Initial video data
+  const initialVideoData = [
+    {
+      id: 1,
+      title: "Sophie Morelli - Shreds of Love (Official Video)",
+      client: "Sophie Morelli",
+      year: "2023",
+      skills: "Original Music, Composition",
+      videoUrl: "https://www.youtube.com/embed/5MNq47gyI0A",
+      description: "Official music video for Sophie Morelli's 'Shreds of Love'.",
+      music: "Sophie Morelli",
+      category: "original-music",
+      projectUrl: "https://www.youtube.com/watch?v=5MNq47gyI0A",
+      thumbnailUrl: "https://i.ytimg.com/vi/5MNq47gyI0A/maxresdefault.jpg",
+      date: "2023-10-15",
+      embedType: "youtube",
+      likes: 42,
+      views: 1289,
+      likedBy: {},
+      pinned: false,
+    },
+    // Add more videos here...
+  ]
+
+  // State variables
+  const [videoData, setVideoData] = React.useState([...initialVideoData])
+  const [currentFilter, setCurrentFilter] = React.useState("all")
+  const [currentSort, setCurrentSort] = React.useState("most-recent")
+  const [filteredVideos, setFilteredVideos] = React.useState([])
+  const [currentVideoIndex, setCurrentVideoIndex] = React.useState(-1)
+  const [isAdmin, setIsAdmin] = React.useState(false)
+  const [isPopupVisible, setIsPopupVisible] = React.useState(false)
+  const [toasts, setToasts] = React.useState([])
+  const updateIntervalRef = React.useRef(null)
+
+  // Admin credentials (in a real app, this would be server-side)
+  const ADMIN_EMAIL = "contact.lucasdeverini@gmail.com"
+  const ADMIN_PASSWORD = "!LucasWebsite1998!"
+  const ADMIN_KEY = "videoGalleryAdmin"
+
+  // Filter and sort videos
+  const filterAndSortVideos = () => {
+    // Apply filter
+    const filtered =
+      currentFilter === "all" ? [...videoData] : videoData.filter((video) => video.category === currentFilter)
+
+    // Apply sort
+    if (currentSort === "most-liked") {
+      filtered.sort((a, b) => b.likes - a.likes)
+    } else if (currentSort === "most-viewed") {
+      filtered.sort((a, b) => b.views - a.views)
+    } else {
+      filtered.sort((a, b) => new Date(b.date) - new Date(a.date))
+    }
+
+    return filtered
+  }
+
+  // Get pinned videos
+  const getPinnedVideos = () => {
+    return videoData.filter((video) => video.pinned)
+  }
+
+  // Show toast message
+  const showToast = (title, message) => {
+    const newToast = {
+      id: Date.now(),
+      title,
+      message,
+    }
+    setToasts((prev) => [...prev, newToast])
+
+    // Auto dismiss after 3 seconds
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((toast) => toast.id !== newToast.id))
+    }, 3000)
+  }
+
+  // Toggle pin status
+  const togglePin = async (videoId) => {
+    // Check if user is admin
+    if (!isAdmin) {
+      return false
+    }
+
+    try {
+      // In a real app, this would be an API call
+      const updatedVideoData = videoData.map((video) => {
+        if (video.id === videoId) {
+          return { ...video, pinned: !video.pinned }
+        }
+        return video
+      })
+
+      setVideoData(updatedVideoData)
+
+      const isPinned = updatedVideoData.find((v) => v.id === videoId)?.pinned
+
+      showToast(
+        isPinned ? "Video Pinned!" : "Video Unpinned!",
+        isPinned
+          ? "Video will be featured at the top for all visitors worldwide."
+          : "Video removed from featured section.",
+      )
+
+      return true
+    } catch (error) {
+      console.error("Error toggling pin status:", error)
+      showToast("Error", error.message || "Could not update pin status. Please try again.")
+      return false
+    }
+  }
+
+  // Add like to video
+  const addLike = async (videoId) => {
+    try {
+      // In a real app, this would be an API call
+      setVideoData((prev) => prev.map((video) => (video.id === videoId ? { ...video, likes: video.likes + 1 } : video)))
+
+      showToast("Liked!", "Thank you for your support.")
+      return true
+    } catch (error) {
+      console.error("Error adding like:", error)
+      showToast("Error", error.message || "Could not save your like. Please try again.")
+      return false
+    }
+  }
+
+  // Open popup with video
+  const openPopup = async (videoIndex) => {
+    if (videoIndex < 0 || videoIndex >= filteredVideos.length) return
+
+    setCurrentVideoIndex(videoIndex)
+
+    // Increment view count
+    const videoId = filteredVideos[videoIndex].id
+    setVideoData((prev) => prev.map((video) => (video.id === videoId ? { ...video, views: video.views + 1 } : video)))
+
+    setIsPopupVisible(true)
+  }
+
+  // Close popup
+  const closePopup = () => {
+    setIsPopupVisible(false)
+  }
+
+  // Navigate to previous video
+  const goToPrevVideo = () => {
+    if (currentVideoIndex > 0) {
+      openPopup(currentVideoIndex - 1)
+    }
+  }
+
+  // Navigate to next video
+  const goToNextVideo = () => {
+    if (currentVideoIndex < filteredVideos.length - 1) {
+      openPopup(currentVideoIndex + 1)
+    }
+  }
+
+  // Admin authentication
+  const handleAdminAuth = (email, password) => {
+    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+      setIsAdmin(true)
+      localStorage.setItem(ADMIN_KEY, "true")
+      showToast("Success", "Admin access granted!")
+      return true
+    }
+    return false
+  }
+
+  // Simulate real-time updates
+  const startRealtimeUpdates = () => {
+    // Simulate activity every 5-15 seconds
+    updateIntervalRef.current = setInterval(
+      () => {
+        // Randomly select a video to update
+        const randomVideoIndex = Math.floor(Math.random() * videoData.length)
+        const randomVideoId = videoData[randomVideoIndex]?.id
+
+        if (!randomVideoId) return
+
+        // Randomly decide whether to add a view or a like
+        const isView = Math.random() > 0.3 // 70% chance of view, 30% chance of like
+
+        setVideoData((prev) =>
+          prev.map((video) =>
+            video.id === randomVideoId
+              ? {
+                  ...video,
+                  views: isView ? video.views + 1 : video.views,
+                  likes: !isView ? video.likes + 1 : video.likes,
+                }
+              : video,
+          ),
+        )
+
+        // Show toast for some activities (rarely, to avoid spam)
+        if (Math.random() > 0.9) {
+          // 10% chance to show toast
+          const video = videoData.find((v) => v.id === randomVideoId)
+          if (video) {
+            showToast("Live Update", `Someone just ${isView ? "viewed" : "liked"} "${video.title.substring(0, 20)}..."`)
+          }
+        }
+      },
+      Math.floor(Math.random() * 10000) + 5000,
+    ) // Random interval between 5-15 seconds
+  }
+
+  // Stop real-time updates
+  const stopRealtimeUpdates = () => {
+    if (updateIntervalRef.current) {
+      clearInterval(updateIntervalRef.current)
+      updateIntervalRef.current = null
+    }
+  }
+
+  // Initialize app
+  React.useEffect(() => {
+    // Try to get admin status from localStorage
+    const savedAdmin = localStorage.getItem(ADMIN_KEY) === "true"
+    if (savedAdmin) {
+      setIsAdmin(true)
+      console.log("Admin status loaded from localStorage")
+    }
+
+    // Start real-time updates
+    startRealtimeUpdates()
+
+    // Show success message
+    showToast("Success", "Video gallery loaded successfully!")
+
+    // Clean up when component unmounts
+    return () => {
+      stopRealtimeUpdates()
+    }
+  }, [])
+
+  // Update filtered videos when filter, sort, or video data changes
+  React.useEffect(() => {
+    setFilteredVideos(filterAndSortVideos())
+  }, [currentFilter, currentSort, videoData])
+
+  // Current video in popup
+  const currentVideo = filteredVideos[currentVideoIndex]
+
+  // Admin Login Modal Component
+  function AdminLoginModal({ isAdmin, onLogin }) {
+    const [isVisible, setIsVisible] = React.useState(false)
+    const [email, setEmail] = React.useState("")
+    const [password, setPassword] = React.useState("")
+    const [error, setError] = React.useState("")
+
+    // Handle admin authentication
+    const handleSubmit = (e) => {
+      e.preventDefault()
+
+      if (!email || !password) {
+        setError("Please enter both email and password.")
+        return
+      }
+
+      const success = onLogin(email, password)
+
+      if (success) {
+        setIsVisible(false)
+        setEmail("")
+        setPassword("")
+        setError("")
+      } else {
+        setError("Invalid admin credentials")
+      }
+    }
+
+    // Show admin modal with keyboard shortcut
+    React.useEffect(() => {
+      const handleKeyDown = (e) => {
+        if (e.altKey && e.key === "a") {
+          setIsVisible(true)
+          e.preventDefault()
+        } else if (e.key === "Escape" && isVisible) {
+          setIsVisible(false)
+        }
+      }
+
+      document.addEventListener("keydown", handleKeyDown)
+      return () => document.removeEventListener("keydown", handleKeyDown)
+    }, [isVisible])
+
+    if (!isVisible) return null
+
+    return e(
+      "div",
+      { className: "admin-auth-container", style: { display: "flex" } },
+      e(
+        "div",
+        { className: "admin-auth-box" },
+        e(
+          "button",
+          {
+            className: "admin-auth-close-btn",
+            onClick: () => setIsVisible(false),
+          },
+          e(
+            "svg",
+            {
+              xmlns: "http://www.w3.org/2000/svg",
+              width: "16",
+              height: "16",
+              viewBox: "0 0 24 24",
+              fill: "none",
+              stroke: "currentColor",
+              strokeWidth: "2",
+              strokeLinecap: "round",
+              strokeLinejoin: "round",
+            },
+            e("line", { x1: "18", y1: "6", x2: "6", y2: "18" }),
+            e("line", { x1: "6", y1: "6", x2: "18", y2: "18" }),
+          ),
+        ),
+        e("h2", { className: "admin-auth-title" }, "Admin Login"),
+        e(
+          "form",
+          { className: "admin-auth-form", onSubmit: handleSubmit },
+          error && e("div", { style: { color: "#ef4444", marginBottom: "1rem" } }, error),
+          e("input", {
+            type: "email",
+            className: "admin-auth-input",
+            placeholder: "Email",
+            value: email,
+            onChange: (e) => setEmail(e.target.value),
+          }),
+          e("input", {
+            type: "password",
+            className: "admin-auth-input",
+            placeholder: "Password",
+            value: password,
+            onChange: (e) => setPassword(e.target.value),
+          }),
+          e("button", { type: "submit", className: "admin-auth-button" }, "Login"),
+        ),
+      ),
+    )
+  }
+
+  // Render the component
+  return e(
+    "div",
+    { className: "video-gallery" },
+    // Sort Container
+    e(
+      "div",
+      { className: "sort-container" },
+      e(
+        "select",
+        {
+          id: "sort-dropdown",
+          className: "sort-dropdown",
+          value: currentSort,
+          onChange: (e) => setCurrentSort(e.target.value),
+        },
+        e("option", { value: "most-recent" }, "Most Recent"),
+        e("option", { value: "most-liked" }, "Most Liked"),
+        e("option", { value: "most-viewed" }, "Most Viewed"),
+      ),
+    ),
+
+    // Pinned Videos Section
+    getPinnedVideos().length > 0 &&
+      e(
+        "div",
+        { id: "pinned-videos-section", className: "pinned-videos-section" },
+        e(
+          "div",
+          { className: "pinned-videos-header" },
+          e(
+            "h2",
+            { className: "pinned-videos-title" },
+            e(
+              "svg",
+              {
+                xmlns: "http://www.w3.org/2000/svg",
+                width: "20",
+                height: "20",
+                viewBox: "0 0 24 24",
+                fill: "#FFD700",
+                stroke: "#FFD700",
+                strokeWidth: "2",
+                strokeLinecap: "round",
+                strokeLinejoin: "round",
+              },
+              e("line", { x1: "12", y1: "17", x2: "12", y2: "3" }),
+              e("path", { d: "M5 17h14v4H5z" }),
+            ),
+            "Featured Videos",
+          ),
+        ),
+        e(
+          "div",
+          { id: "pinned-videos-grid", className: "pinned-videos-grid" },
+          getPinnedVideos().map((video, index) =>
+            e(
+              "div",
+              {
+                key: video.id,
+                className: "video-card pinned visible",
+                "data-id": video.id,
+                onClick: () => {
+                  const videoIndex = filteredVideos.findIndex((v) => v.id === video.id)
+                  if (videoIndex !== -1) {
+                    openPopup(videoIndex)
+                  }
+                },
+              },
+              e(
+                "div",
+                { className: "pin-badge" },
+                e(
+                  "svg",
+                  {
+                    xmlns: "http://www.w3.org/2000/svg",
+                    width: "12",
+                    height: "12",
+                    viewBox: "0 0 24 24",
+                    fill: "currentColor",
+                    stroke: "currentColor",
+                    strokeWidth: "2",
+                    strokeLinecap: "round",
+                    strokeLinejoin: "round",
+                  },
+                  e("line", { x1: "12", y1: "17", x2: "12", y2: "3" }),
+                  e("path", { d: "M5 17h14v4H5z" }),
+                ),
+                "Featured",
+              ),
+              e(
+                "div",
+                { className: "thumbnail-container" },
+                e("img", {
+                  src: video.thumbnailUrl || "/placeholder.svg",
+                  alt: video.title,
+                  loading: "lazy",
+                }),
+                e(
+                  "div",
+                  { className: "play-overlay" },
+                  e(
+                    "div",
+                    { className: "play-button" },
+                    e(
+                      "svg",
+                      {
+                        xmlns: "http://www.w3.org/2000/svg",
+                        width: "24",
+                        height: "24",
+                        viewBox: "0 0 24 24",
+                        fill: "white",
+                        stroke: "currentColor",
+                        strokeWidth: "2",
+                        strokeLinecap: "round",
+                        strokeLinejoin: "round",
+                      },
+                      e("polygon", { points: "5 3 19 12 5 21 5 3" }),
+                    ),
+                  ),
+                ),
+              ),
+              e(
+                "div",
+                { className: "card-content" },
+                e(
+                  "div",
+                  { className: "card-header" },
+                  e("h3", { className: "card-title" }, video.title),
+                  e(
+                    "div",
+                    { className: "card-actions" },
+                    e(
+                      "button",
+                      {
+                        className: "like-button",
+                        "data-id": video.id,
+                        onClick: (e) => {
+                          e.stopPropagation()
+                          addLike(video.id)
+                        },
+                      },
+                      e(
+                        "svg",
+                        {
+                          xmlns: "http://www.w3.org/2000/svg",
+                          width: "18",
+                          height: "18",
+                          viewBox: "0 0 24 24",
+                          fill: "none",
+                          stroke: "currentColor",
+                          strokeWidth: "2",
+                          strokeLinecap: "round",
+                          strokeLinejoin: "round",
+                        },
+                        e("path", {
+                          d: "M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z",
+                        }),
+                      ),
+                    ),
+                    isAdmin &&
+                      e(
+                        "button",
+                        {
+                          className: "pin-button pinned",
+                          "data-id": video.id,
+                          onClick: (e) => {
+                            e.stopPropagation()
+                            togglePin(video.id)
+                          },
+                        },
+                        e(
+                          "svg",
+                          {
+                            xmlns: "http://www.w3.org/2000/svg",
+                            width: "18",
+                            height: "18",
+                            viewBox: "0 0 24 24",
+                            fill: "currentColor",
+                            stroke: "currentColor",
+                            strokeWidth: "2",
+                            strokeLinecap: "round",
+                            strokeLinejoin: "round",
+                          },
+                          e("line", { x1: "12", y1: "17", x2: "12", y2: "3" }),
+                          e("path", { d: "M5 17h14v4H5z" }),
+                        ),
+                      ),
+                  ),
+                ),
+                e("p", { className: "card-meta" }, `${video.client} • ${video.year}`),
+                e(
+                  "div",
+                  { className: "tags-container" },
+                  video.skills.split(", ").map((skill, i) => e("span", { key: i, className: "tag" }, skill)),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+
+    // Filter Container
+    e(
+      "div",
+      { className: "filter-container", id: "filter-container" },
+      e(
+        "button",
+        {
+          className: `filter-btn ${currentFilter === "all" ? "active" : ""}`,
+          "data-filter": "all",
+          onClick: () => setCurrentFilter("all"),
+        },
+        "All",
+      ),
+      e(
+        "button",
+        {
+          className: `filter-btn ${currentFilter === "sound-design" ? "active" : ""}`,
+          "data-filter": "sound-design",
+          onClick: () => setCurrentFilter("sound-design"),
+        },
+        "Sound Design",
+      ),
+      e(
+        "button",
+        {
+          className: `filter-btn ${currentFilter === "original-music" ? "active" : ""}`,
+          "data-filter": "original-music",
+          onClick: () => setCurrentFilter("original-music"),
+        },
+        "Original Music",
+      ),
+      e(
+        "button",
+        {
+          className: `filter-btn ${currentFilter === "mixing-mastering" ? "active" : ""}`,
+          "data-filter": "mixing-mastering",
+          onClick: () => setCurrentFilter("mixing-mastering"),
+        },
+        "Mixing and Mastering",
+      ),
+      e(
+        "button",
+        {
+          className: `filter-btn ${currentFilter === "sonic-branding" ? "active" : ""}`,
+          "data-filter": "sonic-branding",
+          onClick: () => setCurrentFilter("sonic-branding"),
+        },
+        "Sonic Branding",
+      ),
+      e(
+        "button",
+        {
+          className: `filter-btn ${currentFilter === "original-projects" ? "active" : ""}`,
+          "data-filter": "original-projects",
+          onClick: () => setCurrentFilter("original-projects"),
+        },
+        "Original Projects",
+      ),
+      e(
+        "button",
+        {
+          className: `filter-btn ${currentFilter === "film-scoring" ? "active" : ""}`,
+          "data-filter": "film-scoring",
+          onClick: () => setCurrentFilter("film-scoring"),
+        },
+        "Film Scoring",
+      ),
+      e(
+        "button",
+        {
+          className: `filter-btn ${currentFilter === "game-audio" ? "active" : ""}`,
+          "data-filter": "game-audio",
+          onClick: () => setCurrentFilter("game-audio"),
+        },
+        "Game Audio",
+      ),
+      e(
+        "button",
+        {
+          className: `filter-btn ${currentFilter === "foley-art" ? "active" : ""}`,
+          "data-filter": "foley-art",
+          onClick: () => setCurrentFilter("foley-art"),
+        },
+        "Foley Art",
+      ),
+    ),
+
+    // Video Grid
+    e(
+      "div",
+      { className: "video-grid", id: "video-grid" },
+      filteredVideos.length === 0
+        ? e("div", { className: "empty-message" }, "No videos found matching your criteria.")
+        : filteredVideos.map((video, index) =>
+            e(
+              "div",
+              {
+                key: video.id,
+                className: `video-card ${video.pinned ? "pinned" : ""} visible`,
+                "data-id": video.id,
+                onClick: () => openPopup(index),
+              },
+              video.pinned &&
+                e(
+                  "div",
+                  { className: "pin-badge" },
+                  e(
+                    "svg",
+                    {
+                      xmlns: "http://www.w3.org/2000/svg",
+                      width: "12",
+                      height: "12",
+                      viewBox: "0 0 24 24",
+                      fill: "currentColor",
+                      stroke: "currentColor",
+                      strokeWidth: "2",
+                      strokeLinecap: "round",
+                      strokeLinejoin: "round",
+                    },
+                    e("line", { x1: "12", y1: "17", x2: "12", y2: "3" }),
+                    e("path", { d: "M5 17h14v4H5z" }),
+                  ),
+                  "Featured",
+                ),
+              e(
+                "div",
+                { className: "thumbnail-container" },
+                e("img", {
+                  src: video.thumbnailUrl || "/placeholder.svg",
+                  alt: video.title,
+                  loading: "lazy",
+                }),
+                e(
+                  "div",
+                  { className: "play-overlay" },
+                  e(
+                    "div",
+                    { className: "play-button" },
+                    e(
+                      "svg",
+                      {
+                        xmlns: "http://www.w3.org/2000/svg",
+                        width: "24",
+                        height: "24",
+                        viewBox: "0 0 24 24",
+                        fill: "white",
+                        stroke: "currentColor",
+                        strokeWidth: "2",
+                        strokeLinecap: "round",
+                        strokeLinejoin: "round",
+                      },
+                      e("polygon", { points: "5 3 19 12 5 21 5 3" }),
+                    ),
+                  ),
+                ),
+              ),
+              e(
+                "div",
+                { className: "card-content" },
+                e(
+                  "div",
+                  { className: "card-header" },
+                  e("h3", { className: "card-title" }, video.title),
+                  e(
+                    "div",
+                    { className: "card-actions" },
+                    e(
+                      "button",
+                      {
+                        className: "like-button",
+                        "data-id": video.id,
+                        onClick: (e) => {
+                          e.stopPropagation()
+                          addLike(video.id)
+                        },
+                      },
+                      e(
+                        "svg",
+                        {
+                          xmlns: "http://www.w3.org/2000/svg",
+                          width: "18",
+                          height: "18",
+                          viewBox: "0 0 24 24",
+                          fill: "none",
+                          stroke: "currentColor",
+                          strokeWidth: "2",
+                          strokeLinecap: "round",
+                          strokeLinejoin: "round",
+                        },
+                        e("path", {
+                          d: "M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z",
+                        }),
+                      ),
+                    ),
+                    isAdmin &&
+                      e(
+                        "button",
+                        {
+                          className: `pin-button ${video.pinned ? "pinned" : ""}`,
+                          "data-id": video.id,
+                          onClick: (e) => {
+                            e.stopPropagation()
+                            togglePin(video.id)
+                          },
+                        },
+                        e(
+                          "svg",
+                          {
+                            xmlns: "http://www.w3.org/2000/svg",
+                            width: "18",
+                            height: "18",
+                            viewBox: "0 0 24 24",
+                            fill: video.pinned ? "currentColor" : "none",
+                            stroke: "currentColor",
+                            strokeWidth: "2",
+                            strokeLinecap: "round",
+                            strokeLinejoin: "round",
+                          },
+                          e("line", { x1: "12", y1: "17", x2: "12", y2: "3" }),
+                          e("path", { d: "M5 17h14v4H5z" }),
+                        ),
+                      ),
+                  ),
+                ),
+                e("p", { className: "card-meta" }, `${video.client} • ${video.year}`),
+                e(
+                  "div",
+                  { className: "tags-container" },
+                  video.skills.split(", ").map((skill, i) => e("span", { key: i, className: "tag" }, skill)),
+                ),
+              ),
+            ),
+          ),
+    ),
+
+    // Video Popup
+    e(
+      "div",
+      { className: `popup-overlay ${isPopupVisible ? "visible" : ""}`, id: "popup-overlay" },
+      currentVideo &&
+        e(
+          "div",
+          { className: "popup-container" },
+          e(
+            "div",
+            { className: "popup-header" },
+            e(
+              "button",
+              {
+                className: "popup-nav-btn",
+                id: "prev-btn",
+                disabled: currentVideoIndex === 0,
+                onClick: goToPrevVideo,
+              },
+              e(
+                "svg",
+                {
+                  xmlns: "http://www.w3.org/2000/svg",
+                  width: "35",
+                  height: "35",
+                  viewBox: "0 0 24 24",
+                  fill: "none",
+                  stroke: "currentColor",
+                  strokeWidth: "2",
+                  strokeLinecap: "round",
+                  strokeLinejoin: "round",
+                },
+                e("polyline", { points: "15 18 9 12 15 6" }),
+              ),
+            ),
+            e("h2", { className: "popup-title", id: "popup-title" }, currentVideo.title),
+            e(
+              "div",
+              { className: "popup-control-group" },
+              e(
+                "button",
+                {
+                  className: "popup-action-btn popup-like-btn",
+                  id: "popup-like-btn",
+                  onClick: () => addLike(currentVideo.id),
+                },
+                e(
+                  "svg",
+                  {
+                    xmlns: "http://www.w3.org/2000/svg",
+                    width: "24",
+                    height: "24",
+                    viewBox: "0 0 24 24",
+                    fill: "none",
+                    stroke: "white",
+                    strokeWidth: "2",
+                    strokeLinecap: "round",
+                    strokeLinejoin: "round",
+                  },
+                  e("path", {
+                    d: "M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z",
+                  }),
+                ),
+              ),
+              isAdmin &&
+                e(
+                  "button",
+                  {
+                    className: `popup-nav-btn pin-btn ${currentVideo.pinned ? "pinned" : ""}`,
+                    id: "popup-pin-btn",
+                    onClick: () => togglePin(currentVideo.id),
+                  },
+                  e(
+                    "svg",
+                    {
+                      xmlns: "http://www.w3.org/2000/svg",
+                      width: "35",
+                      height: "35",
+                      viewBox: "0 0 24 24",
+                      fill: currentVideo.pinned ? "currentColor" : "none",
+                      stroke: "currentColor",
+                      strokeWidth: "2",
+                      strokeLinecap: "round",
+                      strokeLinejoin: "round",
+                    },
+                    e("line", { x1: "12", y1: "17", x2: "12", y2: "3" }),
+                    e("path", { d: "M5 17h14v4H5z" }),
+                  ),
+                ),
+              e(
+                "button",
+                {
+                  className: "popup-nav-btn",
+                  id: "next-btn",
+                  disabled: currentVideoIndex === filteredVideos.length - 1,
+                  onClick: goToNextVideo,
+                },
+                e(
+                  "svg",
+                  {
+                    xmlns: "http://www.w3.org/2000/svg",
+                    width: "35",
+                    height: "35",
+                    viewBox: "0 0 24 24",
+                    fill: "none",
+                    stroke: "currentColor",
+                    strokeWidth: "2",
+                    strokeLinecap: "round",
+                    strokeLinejoin: "round",
+                  },
+                  e("polyline", { points: "9 18 15 12 9 6" }),
+                ),
+              ),
+              e(
+                "button",
+                {
+                  className: "popup-action-btn popup-close-btn",
+                  id: "close-btn",
+                  onClick: closePopup,
+                },
+                e(
+                  "svg",
+                  {
+                    xmlns: "http://www.w3.org/2000/svg",
+                    width: "24",
+                    height: "24",
+                    viewBox: "0 0 24 24",
+                    fill: "none",
+                    stroke: "white",
+                    strokeWidth: "2",
+                    strokeLinecap: "round",
+                    strokeLinejoin: "round",
+                  },
+                  e("line", { x1: "18", y1: "6", x2: "6", y2: "18" }),
+                  e("line", { x1: "6", y1: "6", x2: "18", y2: "18" }),
+                ),
+              ),
+            ),
+          ),
+          e(
+            "div",
+            { className: "popup-content" },
+            e(
+              "div",
+              { className: "popup-video-container", id: "popup-video-container" },
+              currentVideo.embedType === "youtube"
+                ? e("iframe", {
+                    src: `${currentVideo.videoUrl}?autoplay=1`,
+                    title: currentVideo.title,
+                    allow: "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture",
+                    allowFullScreen: true,
+                  })
+                : e(
+                    "video",
+                    { controls: true, autoPlay: true },
+                    e("source", { src: currentVideo.videoUrl, type: "video/mp4" }),
+                    "Your browser does not support the video tag.",
+                  ),
+            ),
+            e(
+              "div",
+              { className: "popup-info" },
+              e(
+                "div",
+                { className: "popup-meta-grid" },
+                e("div", { className: "meta-label" }, "Client"),
+                e("div", { className: "meta-value", id: "popup-client" }, currentVideo.client),
+                e("div", { className: "meta-label" }, "Year"),
+                e("div", { className: "meta-value", id: "popup-year" }, currentVideo.year),
+                e("div", { className: "meta-label" }, "Skills"),
+                e("div", { className: "meta-value", id: "popup-skills" }, currentVideo.skills),
+                e("div", { className: "meta-label" }, "Music by"),
+                e("div", { className: "meta-value", id: "popup-music" }, currentVideo.music),
+              ),
+              e(
+                "div",
+                {},
+                e("h3", { className: "popup-description-title" }, "Description"),
+                e("p", { className: "popup-description-text", id: "popup-description" }, currentVideo.description),
+              ),
+              e(
+                "a",
+                {
+                  href: currentVideo.projectUrl,
+                  className: "popup-cta",
+                  id: "popup-cta",
+                  target: "_blank",
+                  rel: "noopener noreferrer",
+                },
+                "Go to Project",
+              ),
+            ),
+          ),
+        ),
+    ),
+
+    // Toast Container
+    e(
+      "div",
+      { className: "toast-container", id: "toast-container" },
+      toasts.map((toast) =>
+        e(
+          "div",
+          { key: toast.id, className: "toast visible" },
+          e("div", { className: "toast-title" }, toast.title),
+          e("div", { className: "toast-message" }, toast.message),
+        ),
+      ),
+    ),
+
+    // Admin Login Modal
+    e(AdminLoginModal, {
+      isAdmin: isAdmin,
+      onLogin: handleAdminAuth,
+    }),
+
+    // Realtime Indicator
+    e(
+      "div",
+      { className: "realtime-indicator" },
+      e("div", { className: "realtime-dot" }),
+      e("span", {}, "Live Updates"),
+    ),
+  )
+}
+
+// Initialize React component when DOM is loaded
+document.addEventListener("DOMContentLoaded", () => {
+  const domContainer = document.getElementById("video-gallery-container")
+  if (domContainer) {
+    const root = ReactDOM.createRoot(domContainer)
+    root.render(React.createElement(VideoGallery))
+  }
+})
+
